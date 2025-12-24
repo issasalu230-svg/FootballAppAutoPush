@@ -1,0 +1,87 @@
+# app_football_auto_push.py (version testable)
+
+import time
+import random
+import json
+import os
+
+# -------------------
+# CONFIGURATION
+# -------------------
+INTERVALLE = 5  # 5 secondes pour test rapide
+MEMOIRE_FILE = "matchs_envoyes_test.json"
+
+# -------------------
+# DONNEES FACTICES DES MATCHS
+# -------------------
+matchs = [
+    {"id": 1, "equipe1": "EquipeA", "equipe2": "EquipeB", "heure": "20:00", "stade": "Stade 1"},
+    {"id": 2, "equipe1": "EquipeC", "equipe2": "EquipeA", "heure": "22:00", "stade": "Stade 2"}
+]
+
+# -------------------
+# HISTORIQUE SIMPLIFIE DES EQUIPES
+# -------------------
+historique_equipes = {
+    "EquipeA": {"buts_marques": [1,2,0,3,1], "buts_encaisses": [0,1,1,2,0]},
+    "EquipeB": {"buts_marques": [0,1,2,1,1], "buts_encaisses": [1,0,1,1,2]},
+    "EquipeC": {"buts_marques": [2,1,1,0,2], "buts_encaisses": [1,1,0,1,0]}
+}
+
+# -------------------
+# CHARGER LES MATCHS ENVOYES
+# -------------------
+if os.path.exists(MEMOIRE_FILE):
+    with open(MEMOIRE_FILE, "r") as f:
+        matchs_envoyes = set(json.load(f))
+else:
+    matchs_envoyes = set()
+
+# -------------------
+# FONCTIONS PRINCIPALES
+# -------------------
+
+def predire_score_realiste(match):
+    e1 = match['equipe1']
+    e2 = match['equipe2']
+
+    m1 = sum(historique_equipes[e1]["buts_marques"]) / len(historique_equipes[e1]["buts_marques"])
+    e1_enc = sum(historique_equipes[e1]["buts_encaisses"]) / len(historique_equipes[e1]["buts_encaisses"])
+    m2 = sum(historique_equipes[e2]["buts_marques"]) / len(historique_equipes[e2]["buts_marques"])
+    e2_enc = sum(historique_equipes[e2]["buts_encaisses"]) / len(historique_equipes[e2]["buts_encaisses"])
+
+    score_e1 = max(0, round(random.gauss(m1, 0.8) * 0.6 + e2_enc * 0.4))
+    score_e2 = max(0, round(random.gauss(m2, 0.8) * 0.6 + e1_enc * 0.4))
+    return score_e1, score_e2
+
+def push_notification(match):
+    score_e1, score_e2 = predire_score_realiste(match)
+    print(f"Notification simulée : {match['equipe1']} vs {match['equipe2']} | Score prédit : {score_e1}-{score_e2}")
+
+def sauvegarder_matchs_envoyes():
+    with open(MEMOIRE_FILE, "w") as f:
+        json.dump(list(matchs_envoyes), f)
+
+# -------------------
+# BOUCLE PRINCIPALE AUTO-PUSH
+# -------------------
+
+def main():
+    global matchs_envoyes
+    while True:
+        if matchs:
+            for match in matchs:
+                match_id = match["id"]
+                if match_id not in matchs_envoyes:
+                    push_notification(match)
+                    matchs_envoyes.add(match_id)
+                    sauvegarder_matchs_envoyes()
+        else:
+            print("Aucun match trouvé.")
+
+        print(f"Attente de {INTERVALLE} secondes avant la prochaine vérification...\n")
+        time.sleep(INTERVALLE)
+
+# Point d'entrée
+if __name__ == "__main__":
+    main()
