@@ -1,0 +1,9 @@
+app_football_auto_push/
+│
+├─ app_football_auto_push/      # sous-dossier contenant le code Python
+│   ├─ __init__.py              # fichier vide pour déclarer le paquet
+│   └─ main.py                  # ton script principal (le code actuel)
+│
+├─ setup.py                     # fichier pour installer/publier le paquet
+├─ requirements.txt             # dépendances du projet
+└─ README.md                    # description du projet
