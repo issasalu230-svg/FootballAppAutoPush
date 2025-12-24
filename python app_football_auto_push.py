@@ -1,0 +1,120 @@
+# app_football_auto_push.py
+
+import requests
+import json
+import time
+import os
+import random
+
+# -------------------
+# CONFIGURATION
+# -------------------
+API_URL = "https://exemple.com/api/matchs"  # Remplace par l'URL de ton API
+API_TOKEN = "votre_token_ici"
+PUSH_ENDPOINT = "https://exemple.com/api/push"
+INTERVALLE = 300  # 300 secondes = 5 minutes
+MEMOIRE_FILE = "matchs_envoyes.json"
+
+# -------------------
+# HISTORIQUE DES EQUIPES (exemple)
+# -------------------
+historique_equipes = {
+    "EquipeA": {"buts_marques": [1,2,0,3,1], "buts_encaisses": [0,1,1,2,0]},
+    "EquipeB": {"buts_marques": [0,1,2,1,1], "buts_encaisses": [1,0,1,1,2]},
+    "EquipeC": {"buts_marques": [2,1,1,0,2], "buts_encaisses": [1,1,0,1,0]},
+    # Ajouter toutes les équipes nécessaires
+}
+
+# -------------------
+# CHARGER LES MATCHS ENVOYÉS
+# -------------------
+if os.path.exists(MEMOIRE_FILE):
+    with open(MEMOIRE_FILE, "r") as f:
+        matchs_envoyes = set(json.load(f))
+else:
+    matchs_envoyes = set()
+
+# -------------------
+# FONCTIONS PRINCIPALES
+# -------------------
+
+def get_matchs():
+    """Récupère les matchs depuis l'API."""
+    headers = {"Authorization": f"Bearer {API_TOKEN}"}
+    try:
+        response = requests.get(API_URL, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("matchs", [])  # Adapter selon la structure de ton API
+    except Exception as e:
+        print(f"Erreur lors de la récupération des matchs : {e}")
+        return []
+
+def predire_score_realiste(match):
+    """Prédit un score réaliste basé sur les historiques passés."""
+    e1 = match['equipe1']
+    e2 = match['equipe2']
+
+    if e1 in historique_equipes:
+        m1 = sum(historique_equipes[e1]["buts_marques"]) / len(historique_equipes[e1]["buts_marques"])
+        e1_enc = sum(historique_equipes[e1]["buts_encaisses"]) / len(historique_equipes[e1]["buts_encaisses"])
+    else:
+        m1 = 1.5
+        e1_enc = 1.2
+
+    if e2 in historique_equipes:
+        m2 = sum(historique_equipes[e2]["buts_marques"]) / len(historique_equipes[e2]["buts_marques"])
+        e2_enc = sum(historique_equipes[e2]["buts_encaisses"]) / len(historique_equipes[e2]["buts_encaisses"])
+    else:
+        m2 = 1.2
+        e2_enc = 1.5
+
+    score_e1 = max(0, round(random.gauss(m1, 0.8) * 0.6 + e2_enc * 0.4))
+    score_e2 = max(0, round(random.gauss(m2, 0.8) * 0.6 + e1_enc * 0.4))
+
+    return score_e1, score_e2
+
+def push_notification(match):
+    """Envoie une notification pour un match avec score prédit."""
+    score_e1, score_e2 = predire_score_realiste(match)
+    payload = {
+        "title": f"Match à venir : {match['equipe1']} vs {match['equipe2']}",
+        "message": f"Heure : {match['heure']}, Stade : {match['stade']}\n"
+                   f"Score probable : {match['equipe1']} {score_e1} - {score_e2} {match['equipe2']}"
+    }
+    try:
+        response = requests.post(PUSH_ENDPOINT, json=payload)
+        response.raise_for_status()
+        print(f"Notification envoyée pour {match['equipe1']} vs {match['equipe2']} | Score prédit : {score_e1}-{score_e2}")
+    except Exception as e:
+        print(f"Erreur lors de l'envoi de la notification : {e}")
+
+def sauvegarder_matchs_envoyes():
+    """Sauvegarde les matchs déjà envoyés dans un fichier."""
+    with open(MEMOIRE_FILE, "w") as f:
+        json.dump(list(matchs_envoyes), f)
+
+# -------------------
+# BOUCLE PRINCIPALE AUTO-PUSH
+# -------------------
+
+def main():
+    global matchs_envoyes
+    while True:
+        matchs = get_matchs()
+        if matchs:
+            for match in matchs:
+                match_id = match.get("id")  # Chaque match doit avoir un ID unique
+                if match_id not in matchs_envoyes:
+                    push_notification(match)
+                    matchs_envoyes.add(match_id)
+                    sauvegarder_matchs_envoyes()
+        else:
+            print("Aucun match trouvé.")
+        
+        print(f"Attente de {INTERVALLE} secondes avant la prochaine vérification...")
+        time.sleep(INTERVALLE)
+
+# Point d'entrée
+if __name__ == "__main__":
+    main()
