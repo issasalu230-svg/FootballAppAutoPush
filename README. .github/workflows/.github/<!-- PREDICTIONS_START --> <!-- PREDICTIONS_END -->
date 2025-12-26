@@ -1,0 +1,9 @@
+    - name: Update README with predictions
+      run: |
+        # Supprime l’ancien bloc prédictions
+        sed -i '/<!-- PREDICTIONS_START -->/,/<!-- PREDICTIONS_END -->/d' README.md
+        # Ajoute le nouveau bloc
+        echo "<!-- PREDICTIONS_START -->" >> README.md
+        echo '## 🔮 Dernières prédictions automatiques' >> README.md
+        cat predictions.txt >> README.md
+        echo "<!-- PREDICTIONS_END -->" >> README.md
